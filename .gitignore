@@ -2,6 +2,7 @@ yapf
 bases/
 log/
 output/
+*.swp
 
 
 # PYTHON GITHUB GITIGNORE
