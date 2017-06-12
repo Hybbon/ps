@@ -73,7 +73,7 @@ _METRICS = [
     MetricSettings(
         constructor=epc.EPC, cutoffs=[1, 3, 10, 20], multiprocess=True),
     MetricSettings(
-        constructor=eild.EILD, cutoffs=[1, 3, 10, 20], multiprocess=False),
+        constructor=eild.EILD, cutoffs=[1, 3, 10, 20], multiprocess=True),
     MetricSettings(
         constructor=map_module.MAP, cutoffs=[1, 3, 10, 20], multiprocess=True),
 ]

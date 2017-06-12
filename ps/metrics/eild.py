@@ -8,7 +8,7 @@ import pandas as pd
 
 def _compute_likers(ratings):
   return {
-      item_id: set(item_frame.user_id)
+      item_id: frozenset(item_frame.user_id)
       for item_id, item_frame in ratings.groupby(['item_id'])
   }
 
@@ -35,16 +35,39 @@ def _compute_distances(k_items, l_items, likers_by_item):
   return distances
 
 
+def _compute_distance_matrix(ratings):
+  likers_by_item = _compute_likers(ratings)
+  item_ids = sorted(likers_by_item.keys())
+  num_items = len(item_ids)
+  matrix = np.zeros((num_items, num_items))
+  for i, item_i in enumerate(item_ids):
+    for j, item_j in enumerate(item_ids):
+      i_likers = likers_by_item.get(item_i, frozenset())
+      j_likers = likers_by_item.get(item_j, frozenset())
+      matrix[i][j] = _cosine_similarity(i_likers, j_likers)
+
+  return matrix, item_ids
+
+
+def _compute_distances_by_fold(rating_set_by_fold):
+  likers_by_fold = {
+      fold: _compute_distance_matrix(rating_set.all_ratings())
+      for fold, rating_set in rating_set_by_fold.items()
+  }
+  return collections.OrderedDict(sorted(likers_by_fold.items()))
+
+
 class EILD(object):
   NAME = 'EILD'
 
   def __init__(self, ranking_set_by_id, rating_set_by_fold):
-    logging.info('Computing likers')
-    self.likers_by_fold = _compute_likers_by_fold(rating_set_by_fold)
-    logging.info('Done computing likers')
+    logging.info('Computing distances')
+    self.distances_by_fold = _compute_distances_by_fold(rating_set_by_fold)
+    logging.info('Done computing distances')
 
   def compute(self, ranking_set, num_items=None):
-    likers_by_item = self.likers_by_fold[ranking_set.id.fold]
+    distance_matrix, item_ids = self.distances_by_fold[ranking_set.id.fold]
+    index_by_item_id = {item_id: i for i, item_id in enumerate(item_ids)}
 
     matrix = ranking_set.matrix
 
@@ -67,7 +90,11 @@ class EILD(object):
 
         l_items = matrix[:, l]
 
-        distances = _compute_distances(k_items, l_items, likers_by_item)
+        distances = []
+        for k_item, l_item in zip(k_items, l_items):
+          distances.append(distance_matrix[index_by_item_id[k_item],
+                                           index_by_item_id[l_item]])
+
         mean_distance = sum(distances) / len(distances)
 
         relative_discount = 0.85**max(0, l - k - 1)
