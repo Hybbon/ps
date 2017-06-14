@@ -71,11 +71,11 @@ MetricSettings = collections.namedtuple('MetricSettings', (
 
 _METRICS = [
     MetricSettings(
-        constructor=epc.EPC, cutoffs=[1, 3, 10, 20], multiprocess=True),
+        constructor=epc.EPC, cutoffs=[10], multiprocess=True),
     MetricSettings(
-        constructor=eild.EILD, cutoffs=[1, 3, 10, 20], multiprocess=True),
+        constructor=eild.EILD, cutoffs=[10], multiprocess=True),
     MetricSettings(
-        constructor=map_module.MAP, cutoffs=[1, 3, 10, 20], multiprocess=True),
+        constructor=map_module.MAP, cutoffs=[10], multiprocess=True),
 ]
 
 
