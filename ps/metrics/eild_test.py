@@ -10,14 +10,11 @@ import pandas as pd
 
 class ComputeLikersTest(unittest.TestCase):
 
-  def test_rating_set_with_validation(self):
+  def test_computes_likers(self):
     rating_set = dataset_io.RatingSet(fold='u1')
     rating_set.base = pd.DataFrame.from_records(
-        columns=['user_id', 'item_id', 'rating'], data=[(1, 2, 5), (2, 2, 5)])
-    rating_set.test = pd.DataFrame.from_records(
-        columns=['user_id', 'item_id', 'rating'], data=[(2, 3, 5)])
-    rating_set.validation = pd.DataFrame.from_records(
-        columns=['user_id', 'item_id', 'rating'], data=[(3, 3, 5)])
+        columns=['user_id', 'item_id', 'rating'], data=[(1, 2, 5), (2, 2, 5),
+                                                        (2, 3, 5), (3, 3, 5)])
     rating_set_by_fold = {'u1': rating_set}
 
     likers_by_fold = eild._compute_likers_by_fold(rating_set_by_fold)
@@ -26,31 +23,30 @@ class ComputeLikersTest(unittest.TestCase):
     likers_by_item_id = likers_by_fold['u1']
     self.assertDictEqual({2: {1, 2}, 3: {2, 3}}, likers_by_item_id)
 
-  def test_rating_set_without_validation(self):
+  def test_ignores_test_and_validation(self):
     rating_set = dataset_io.RatingSet(fold='u1')
     rating_set.base = pd.DataFrame.from_records(
-        columns=['user_id', 'item_id', 'rating'], data=[(1, 2, 5), (2, 2, 5)])
+        columns=['user_id', 'item_id', 'rating'], data=[])
     rating_set.test = pd.DataFrame.from_records(
         columns=['user_id', 'item_id', 'rating'], data=[(2, 3, 5)])
+    rating_set.validation = pd.DataFrame.from_records(
+        columns=['user_id', 'item_id', 'rating'], data=[(1, 3, 5)])
     rating_set_by_fold = {'u1': rating_set}
 
     likers_by_fold = eild._compute_likers_by_fold(rating_set_by_fold)
     self.assertIn('u1', likers_by_fold)
 
     likers_by_item_id = likers_by_fold['u1']
-    self.assertDictEqual({2: {1, 2}, 3: {2}}, likers_by_item_id)
+    self.assertDictEqual({}, likers_by_item_id)
 
 
 class ComputeDistanceMatrixTest(unittest.TestCase):
 
-  def test_rating_set_with_validation(self):
+  def test_computes_distances(self):
     rating_set = dataset_io.RatingSet(fold='u1')
     rating_set.base = pd.DataFrame.from_records(
-        columns=['user_id', 'item_id', 'rating'], data=[(1, 2, 5), (2, 2, 5)])
-    rating_set.test = pd.DataFrame.from_records(
-        columns=['user_id', 'item_id', 'rating'], data=[(2, 3, 5)])
-    rating_set.validation = pd.DataFrame.from_records(
-        columns=['user_id', 'item_id', 'rating'], data=[(3, 3, 5)])
+        columns=['user_id', 'item_id', 'rating'], data=[(1, 2, 5), (2, 2, 5),
+                                                        (2, 3, 5), (3, 3, 5)])
     rating_set_by_fold = {'u1': rating_set}
 
     distance_by_fold = eild._compute_distances_by_fold(rating_set_by_fold)
@@ -64,24 +60,26 @@ class ComputeDistanceMatrixTest(unittest.TestCase):
 
     self.assertSequenceEqual([2, 3], item_ids)
 
-  def test_rating_set_without_validation(self):
+  def test_ignores_test_and_validation(self):
     rating_set = dataset_io.RatingSet(fold='u1')
     rating_set.base = pd.DataFrame.from_records(
-        columns=['user_id', 'item_id', 'rating'], data=[(1, 2, 5), (2, 2, 5)])
+        columns=['user_id', 'item_id', 'rating'], data=[])
     rating_set.test = pd.DataFrame.from_records(
         columns=['user_id', 'item_id', 'rating'], data=[(2, 3, 5)])
+    rating_set.validation = pd.DataFrame.from_records(
+        columns=['user_id', 'item_id', 'rating'], data=[(1, 3, 5)])
     rating_set_by_fold = {'u1': rating_set}
 
     distance_by_fold = eild._compute_distances_by_fold(rating_set_by_fold)
     self.assertIn('u1', distance_by_fold)
 
     distance_matrix, item_ids = distance_by_fold['u1']
-    expected_matrix = np.array([[1., 1 / math.sqrt(2)], [1 / math.sqrt(2), 1.]])
+    expected_matrix = np.array([])
 
     are_almost_equal = ((distance_matrix - expected_matrix) < 1e-8).all()
     self.assertTrue(are_almost_equal)
 
-    self.assertSequenceEqual([2, 3], item_ids)
+    self.assertSequenceEqual([], item_ids)
 
 
 class CosineSimilarityTest(unittest.TestCase):

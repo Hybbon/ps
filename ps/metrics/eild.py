@@ -15,7 +15,7 @@ def _compute_likers(ratings):
 
 def _compute_likers_by_fold(rating_set_by_fold):
   likers_by_fold = {
-      fold: _compute_likers(rating_set.all_ratings())
+      fold: _compute_likers(rating_set.base)
       for fold, rating_set in rating_set_by_fold.items()
   }
   return collections.OrderedDict(sorted(likers_by_fold.items()))
@@ -51,7 +51,7 @@ def _compute_distance_matrix(ratings):
 
 def _compute_distances_by_fold(rating_set_by_fold):
   likers_by_fold = {
-      fold: _compute_distance_matrix(rating_set.all_ratings())
+      fold: _compute_distance_matrix(rating_set.base)
       for fold, rating_set in rating_set_by_fold.items()
   }
   return collections.OrderedDict(sorted(likers_by_fold.items()))

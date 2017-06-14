@@ -19,7 +19,7 @@ def _compute_popularity(ratings):
 
 def _compute_popularity_by_fold(rating_set_by_fold):
   popularity_by_fold = {
-      fold: _compute_popularity(rating_set.all_ratings())
+      fold: _compute_popularity(rating_set.base)
       for fold, rating_set in rating_set_by_fold.items()
   }
   return collections.OrderedDict(sorted(popularity_by_fold.items()))
