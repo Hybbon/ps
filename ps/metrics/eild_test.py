@@ -13,8 +13,8 @@ class ComputeLikersTest(unittest.TestCase):
   def test_computes_likers(self):
     rating_set = dataset_io.RatingSet(fold='u1')
     rating_set.base = pd.DataFrame.from_records(
-        columns=['user_id', 'item_id', 'rating'], data=[(1, 2, 5), (2, 2, 5),
-                                                        (2, 3, 5), (3, 3, 5)])
+        columns=['user_id', 'item_id', 'rating'],
+        data=[(1, 2, 5), (2, 2, 5), (2, 3, 5), (3, 3, 5)])
     rating_set_by_fold = {'u1': rating_set}
 
     likers_by_fold = eild._compute_likers_by_fold(rating_set_by_fold)
@@ -45,8 +45,8 @@ class ComputeDistanceMatrixTest(unittest.TestCase):
   def test_computes_distances(self):
     rating_set = dataset_io.RatingSet(fold='u1')
     rating_set.base = pd.DataFrame.from_records(
-        columns=['user_id', 'item_id', 'rating'], data=[(1, 2, 5), (2, 2, 5),
-                                                        (2, 3, 5), (3, 3, 5)])
+        columns=['user_id', 'item_id', 'rating'],
+        data=[(1, 2, 5), (2, 2, 5), (2, 3, 5), (3, 3, 5)])
     rating_set_by_fold = {'u1': rating_set}
 
     distance_by_fold = eild._compute_distances_by_fold(rating_set_by_fold)

@@ -55,9 +55,10 @@ def _load_ranking_matrix(path):
 
   max_ranking_length = max(len(ranking) for ranking in rankings)
 
-  rankings_matrix = np.zeros((len(rankings), max_ranking_length))
+  rankings_matrix = np.full(
+      (len(rankings), max_ranking_length), -1, dtype='int32')
   for i, ranking in enumerate(rankings):
-    rankings_matrix[i, :] = ranking
+    rankings_matrix[i, :len(ranking)] = ranking
 
   return rankings_matrix, user_ids
 
@@ -77,8 +78,14 @@ def load_ranking_sets(dir_path):
 
 
 def _load_ratings(path):
-  headers = ('user_id', 'item_id', 'rating')
-  return pd.read_csv(path, "\t", names=headers)
+  column_names = ('user_id', 'item_id', 'rating')
+  return pd.read_csv(
+      path,
+      "\t",
+      names=column_names,
+      dtype={'user_id': 'int32',
+             'item_id': 'int32',
+             'rating': 'uint8'})
 
 
 class RatingSet(object):
