@@ -82,10 +82,7 @@ def _load_ratings(path):
   return pd.read_csv(
       path,
       "\t",
-      names=column_names,
-      dtype={'user_id': 'int32',
-             'item_id': 'int32',
-             'rating': 'uint8'})
+      names=column_names)
 
 
 class RatingSet(object):
