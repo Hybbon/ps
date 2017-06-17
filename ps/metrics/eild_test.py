@@ -149,6 +149,20 @@ class EildComputeTest(unittest.TestCase):
 
     self.assertAlmostEqual(0, self.eild.compute(ranking_set))
 
+  def test_ranking_with_item_not_in_ratings(self):
+    item_ids = [1]
+    distance_matrix = np.array([
+        [1]
+    ])
+    self.eild.distances_by_fold = {'u1': (distance_matrix, item_ids)}
+    ranking_matrix = np.array([[1, 2]])
+    ranking_set = dataset_io.RankingSet(
+        id=dataset_io.RankingSetId('u1', 'Alg'),
+        matrix=ranking_matrix,
+        user_ids=[])
+
+    self.assertAlmostEqual(0, self.eild.compute(ranking_set))
+
   def test_many_items(self):
     item_ids = [1, 2, 3]
     distance_matrix = np.array([

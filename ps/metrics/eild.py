@@ -92,8 +92,8 @@ class EILD(object):
 
         distances = []
         for k_item, l_item in zip(k_items, l_items):
-          k_index = index_by_item_id[k_item]
-          l_index = index_by_item_id[l_item]
+          k_index = index_by_item_id.get(k_item)
+          l_index = index_by_item_id.get(l_item)
 
           # If an item appears in the rankings, but not in any rating.
           if k_index is None or l_index is None:
