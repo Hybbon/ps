@@ -92,8 +92,14 @@ class EILD(object):
 
         distances = []
         for k_item, l_item in zip(k_items, l_items):
-          distances.append(distance_matrix[index_by_item_id[k_item],
-                                           index_by_item_id[l_item]])
+          k_index = index_by_item_id.get(k_item)
+          l_index = index_by_item_id.get(l_item)
+
+          # If an item appears in the rankings, but not in any rating.
+          if k_index is None or l_index is None:
+            distances.append(0.)
+          else:
+            distances.append(distance_matrix[k_index, l_index])
 
         mean_distance = sum(distances) / len(distances)
 
