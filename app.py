@@ -4,22 +4,7 @@ import logging
 import os
 
 from ps import gen_metrics
-
-
-def _setup_loggers(log_path):
-  logging_formatter = logging.Formatter(
-      "%(asctime)s [%(threadName)-12.12s] [%(levelname)-5.5s]  %(message)s")
-  root_logger = logging.getLogger()
-  root_logger.setLevel(logging.DEBUG)
-
-  file_handler = logging.FileHandler(log_path)
-  file_handler.setFormatter(logging_formatter)
-  root_logger.addHandler(file_handler)
-
-  console_handler = logging.StreamHandler()
-  console_handler.setFormatter(logging_formatter)
-  root_logger.addHandler(console_handler)
-
+from ps import logging_utils
 
 def parse_args():
   p = argparse.ArgumentParser(description='Compute metrics for rankings')
@@ -43,7 +28,7 @@ def main():
     if not os.path.exists(dir_path):
       os.makedirs(dir_path)
 
-  _setup_loggers(log_path)
+  logging_utils.setup_loggers(log_path)
 
   logging.info('Generating metrics for %s', args.dataset)
   logging.info('Saving stuff at %s', output_dir)
