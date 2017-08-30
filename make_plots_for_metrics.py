@@ -5,6 +5,7 @@ import functools
 import logging
 import os
 
+import matplotlib as mpl
 import matplotlib.pyplot as plt
 import pandas as pd
 
@@ -25,18 +26,20 @@ def _mean_value_by_metric(metrics, metric_name):
 
 
 def _compute_mean_metrics(metrics):
-  recommenders = [
-      'BPRSLIM', 'CofiRank', 'Hybrid_librec', 'LDA_librec', 'libfm',
-      'MultiCoreBPRMF', 'RankALS_librec', 'WRMF', 'CoFactor', 'FISM_librec',
-      'ItemKNN', 'LeastSquareSLIM', 'MostPopular', 'Poisson',
-      'SoftMarginRankingMF'
-  ]
-  unsup_agg = ['BordaCount', 'MedianRankAggregation']
-  source_category = {
-      source: 'recommender' if source in recommenders else 'unsup_agg'
-      if source in unsup_agg else 'sup_agg'
-      for source in metrics.source.unique()
+  sources_by_category = {
+      'recommender': [
+          'BPRSLIM', 'CofiRank', 'Hybrid_librec', 'LDA_librec', 'libfm',
+          'MultiCoreBPRMF', 'RankALS_librec', 'WRMF', 'CoFactor', 'FISM_librec',
+          'ItemKNN', 'LeastSquareSLIM', 'MostPopular', 'Poisson',
+          'SoftMarginRankingMF'
+      ],
+      'era_multiobj': ['ERAMultiObj'],
+      'unsup_agg': ['BordaCount', 'MedianRankAggregation'],
   }
+  source_category = {}
+  for category, sources in sources_by_category.items():
+    for source in sources:
+      source_category[source] = category
 
   mean_metrics = pd.DataFrame({
       'map': _mean_value_by_metric(metrics, 'MAP'),
@@ -44,9 +47,20 @@ def _compute_mean_metrics(metrics):
       'epc': _mean_value_by_metric(metrics, 'EPC')
   })
   mean_metrics['source_category'] = [
-      source_category[source] for source in mean_metrics.index
+      source_category.get(source, 'sup_agg') for source in mean_metrics.index
   ]
-  mean_metrics = mean_metrics.sort_values(by='source_category')
+
+  sort_weights = {
+      'recommender': 0,
+      'unsup_agg': 1,
+      'sup_agg': 2,
+      'era_multiobj': 3,
+  }
+  mean_metrics['sort_weights'] = [
+      sort_weights[category] for category in mean_metrics.source_category
+  ]
+  mean_metrics = mean_metrics.sort_values(by='sort_weights')
+  del mean_metrics['sort_weights']
   return mean_metrics
 
 
@@ -55,6 +69,7 @@ def plot(f):
   @functools.wraps(f)
   def wrapped(path, *args, **kwargs):
     plt.clf()
+    mpl.rc('font', size=15.)
 
     f(*args, **kwargs)
 
@@ -65,9 +80,22 @@ def plot(f):
   return wrapped
 
 
+def get_metric_display_name(internal_name):
+  display_name_by_internal = {
+    'map': 'Precisão',
+    'eild': 'Diversidade',
+    'epc': 'Novidade'
+  }
+
+  return display_name_by_internal.get(internal_name, internal_name)
+
+
 @plot
 def _bar_plot_for_mean_metrics(mean_metrics):
-  mean_metrics.plot(kind='bar')
+  ax = mean_metrics.plot(kind='bar')
+  handles, labels = ax.get_legend_handles_labels()
+  display_labels = [get_metric_display_name(label) for label in labels]
+  ax.legend(handles, display_labels)
 
 
 @plot
@@ -89,10 +117,15 @@ def _scatter_plot_by_source_category(mean_metrics,
     mean_y_value = mean_metrics[y].median()
     plt.axhline(y=mean_y_value, c=(0, 0, 0, 0.65))
 
-  colors = ['r', 'g', 'b']
-  for (category, frame), color in zip(
-      mean_metrics.groupby('source_category'), colors):
-    scatter_plot = frame.plot.scatter(x, y, c=color, label=category, ax=ax)
+  colors = ['darkblue', 'orangered', 'green', 'darkorchid']
+  markers = ['o', 'x', 's', 'd']
+  for (category, frame), color, marker in zip(
+      mean_metrics.groupby('source_category'), colors, markers):
+    scatter_plot = frame.plot.scatter(
+        x, y, s=45., c=color, marker=marker, label=category, ax=ax)
+
+  ax.set_xlabel(get_metric_display_name(x))
+  ax.set_ylabel(get_metric_display_name(y))
 
 
 ScatterPlotSettings = collections.namedtuple('ScatterPlotSettings', (
