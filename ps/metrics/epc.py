@@ -4,25 +4,7 @@ import logging
 import numpy as np
 import pandas as pd
 
-
-def _compute_popularity(ratings):
-  """Computes the popularity of the items in the ratings.
-
-  ratings -- A DataFrame with all ratings.
-
-  Returns a Series of the popularity indexed by item_id. Popularity values
-  range from 0 to 1.
-  """
-  num_users = len(ratings.user_id.unique()) or 1  # No ratings.
-  return ratings.item_id.value_counts() / num_users
-
-
-def _compute_popularity_by_fold(rating_set_by_fold):
-  popularity_by_fold = {
-      fold: _compute_popularity(rating_set.base)
-      for fold, rating_set in rating_set_by_fold.items()
-  }
-  return collections.OrderedDict(sorted(popularity_by_fold.items()))
+from ps import rating_utils
 
 
 class EPC(object):
@@ -30,7 +12,7 @@ class EPC(object):
 
   def __init__(self, ranking_set_by_id, rating_set_by_fold):
     logging.info('Computing popularity')
-    self.popularity_by_fold = _compute_popularity_by_fold(rating_set_by_fold)
+    self.popularity_by_fold = rating_utils.compute_popularity_by_fold(rating_set_by_fold)
     logging.info('Done computing popularity')
 
   def compute(self, ranking_set, num_items=None):

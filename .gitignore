@@ -2,6 +2,7 @@ yapf
 bases/
 log/
 output/
+era-outs/
 *.swp
 
 

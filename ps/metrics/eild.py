@@ -2,59 +2,9 @@ import collections
 import logging
 import math
 
-import numpy as np
 import pandas as pd
 
-
-def _compute_likers(ratings):
-  return {
-      item_id: frozenset(item_frame.user_id)
-      for item_id, item_frame in ratings.groupby(['item_id'])
-  }
-
-
-def _compute_likers_by_fold(rating_set_by_fold):
-  likers_by_fold = {
-      fold: _compute_likers(rating_set.base)
-      for fold, rating_set in rating_set_by_fold.items()
-  }
-  return collections.OrderedDict(sorted(likers_by_fold.items()))
-
-
-def _cosine_similarity(a, b):
-  return len(a & b) / ((math.sqrt(len(a)) * math.sqrt(len(b))) or 1)
-
-
-def _compute_distances(k_items, l_items, likers_by_item):
-  distances = []
-  for k_item, l_item in zip(k_items, l_items):
-    k_likers = likers_by_item.get(k_item, set())
-    l_likers = likers_by_item.get(l_item, set())
-    distance = _cosine_similarity(k_likers, l_likers)
-    distances.append(distance)
-  return distances
-
-
-def _compute_distance_matrix(ratings):
-  likers_by_item = _compute_likers(ratings)
-  item_ids = sorted(likers_by_item.keys())
-  num_items = len(item_ids)
-  matrix = np.zeros((num_items, num_items))
-  for i, item_i in enumerate(item_ids):
-    for j, item_j in enumerate(item_ids):
-      i_likers = likers_by_item.get(item_i, frozenset())
-      j_likers = likers_by_item.get(item_j, frozenset())
-      matrix[i][j] = _cosine_similarity(i_likers, j_likers)
-
-  return matrix, item_ids
-
-
-def _compute_distances_by_fold(rating_set_by_fold):
-  likers_by_fold = {
-      fold: _compute_distance_matrix(rating_set.base)
-      for fold, rating_set in rating_set_by_fold.items()
-  }
-  return collections.OrderedDict(sorted(likers_by_fold.items()))
+from ps import rating_utils
 
 
 class EILD(object):
@@ -62,7 +12,7 @@ class EILD(object):
 
   def __init__(self, ranking_set_by_id, rating_set_by_fold):
     logging.info('Computing distances')
-    self.distances_by_fold = _compute_distances_by_fold(rating_set_by_fold)
+    self.distances_by_fold = rating_utils.compute_distances_by_fold(rating_set_by_fold)
     logging.info('Done computing distances')
 
   def compute(self, ranking_set, num_items=None):

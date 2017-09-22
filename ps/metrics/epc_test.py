@@ -7,23 +7,6 @@ import numpy as np
 import pandas as pd
 
 
-class ComputePopularityTest(unittest.TestCase):
-
-  def test_compute_popularity(self):
-    ratings = pd.DataFrame.from_records(
-        [
-            (1, 1),
-            (1, 2),
-            (2, 1),
-            (2, 3),
-        ], columns=['user_id', 'item_id'])
-
-    expected_popularity = {(1, 1.), (2, 0.5), (3, 0.5)}
-    popularity = set(epc._compute_popularity(ratings).items())
-
-    self.assertEqual(expected_popularity, popularity)
-
-
 class EpcComputeTest(unittest.TestCase):
 
   def setUp(self):

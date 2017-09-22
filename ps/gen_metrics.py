@@ -7,21 +7,10 @@ import numpy as np
 import pandas as pd
 
 from ps import dataset_io
+from ps import logging_utils
 from ps.metrics import eild
 from ps.metrics import epc
 from ps.metrics import map as map_module
-
-
-def _log_stats_for_folds(rating_set_by_fold):
-  logging.info('Ratings for %d folds loaded', len(rating_set_by_fold))
-  for fold, rating_set in rating_set_by_fold.items():
-    logging.info('Fold %s', fold)
-    logging.info('%d base ratings', len(rating_set.base))
-    logging.info('%d test ratings', len(rating_set.test))
-    if hasattr(rating_set, 'validation'):
-      logging.info('%d validation ratings', len(rating_set.validation))
-    else:
-      logging.info('No validation split')
 
 
 def _run_metric_multi_process(metric, ranking_set_by_id, cutoff):
@@ -70,16 +59,13 @@ MetricSettings = collections.namedtuple('MetricSettings', (
     'constructor', 'cutoffs', 'multiprocess'))
 
 _METRICS = [
-    MetricSettings(
-        constructor=epc.EPC, cutoffs=[10], multiprocess=True),
-    MetricSettings(
-        constructor=eild.EILD, cutoffs=[10], multiprocess=True),
-    MetricSettings(
-        constructor=map_module.MAP, cutoffs=[10], multiprocess=True),
+    MetricSettings(constructor=epc.EPC, cutoffs=[10], multiprocess=True),
+    MetricSettings(constructor=eild.EILD, cutoffs=[10], multiprocess=True),
+    MetricSettings(constructor=map_module.MAP, cutoffs=[10], multiprocess=True),
 ]
 
 
-def _compute_all_metrics(ranking_set_by_id, rating_set_by_fold):
+def compute_all_metrics(ranking_set_by_id, rating_set_by_fold):
   results_frames = []
   for metric_settings in _METRICS:
     frame = _compute_metric(metric_settings, ranking_set_by_id,
@@ -112,7 +98,7 @@ def main(dataset_dir, output_dir):
   ranking_set_by_id = dataset_io.load_ranking_sets(dataset_dir)
   logging.info('Loading rating sets')
   rating_set_by_fold = dataset_io.load_ratings_for_all_folds(dataset_dir)
-  _log_stats_for_folds(rating_set_by_fold)
+  logging_utils.log_stats_for_folds(rating_set_by_fold)
   logging.info('Done loading')
-  results_frame = _compute_all_metrics(ranking_set_by_id, rating_set_by_fold)
+  results_frame = compute_all_metrics(ranking_set_by_id, rating_set_by_fold)
   _save_results_frame(results_frame, output_dir)
