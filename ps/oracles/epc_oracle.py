@@ -25,7 +25,7 @@ class EPCOracle(oracle_utils.Oracle):
       user_ids.append(user_id)
 
       matrix[i, :] = heapq.nsmallest(output_cutoff, recommended_to_user,
-                                     popularity_by_item.get)
+              lambda i: popularity_by_item.get(i, 99999999.))
 
     ranking_set_id = dataset_io.RankingSetId(fold, 'EPCOracle')
     ranking_set = dataset_io.RankingSet(ranking_set_id, matrix, user_ids)

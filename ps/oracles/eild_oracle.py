@@ -29,7 +29,7 @@ class EILDOracle(oracle_utils.Oracle):
       user_ids.append(user_id)
 
       matrix[i, :] = heapq.nlargest(output_cutoff, recommended_to_user,
-                                    mean_distance_by_item.get)
+              lambda i: mean_distance_by_item.get(i, 0.))
 
     ranking_set_id = dataset_io.RankingSetId(fold, 'EILDOracle')
     ranking_set = dataset_io.RankingSet(ranking_set_id, matrix, user_ids)
