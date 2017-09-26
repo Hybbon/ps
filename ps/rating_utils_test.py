@@ -181,15 +181,15 @@ class ComputeDistancesTest(unittest.TestCase):
   def test_no_likers(self):
     likers_per_item = {}
     distances = rating_utils._compute_distances([1, 3], [2, 4], likers_per_item)
-    self.assertSequenceEqual([0, 0], distances)
+    self.assertSequenceEqual([1, 1], distances)
 
   def test_with_likers(self):
     likers_per_item = {1: {2, 3}, 2: {2, 3}, 3: {2}, 4: {2, 3}}
     distances = rating_utils._compute_distances([1, 3], [2, 4], likers_per_item)
 
     self.assertEqual(2, len(distances))
-    self.assertAlmostEqual(1, distances[0])
-    self.assertAlmostEqual(1 / math.sqrt(2), distances[1])
+    self.assertAlmostEqual(0, distances[0])
+    self.assertAlmostEqual(1 - 1 / math.sqrt(2), distances[1])
 
 
 

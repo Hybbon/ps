@@ -79,7 +79,7 @@ def _compute_distances(k_items, l_items, likers_by_item):
   for k_item, l_item in zip(k_items, l_items):
     k_likers = likers_by_item.get(k_item, frozenset())
     l_likers = likers_by_item.get(l_item, frozenset())
-    distance = _cosine_similarity(k_likers, l_likers)
+    distance = 1 - _cosine_similarity(k_likers, l_likers)
     distances.append(distance)
   return distances
 
