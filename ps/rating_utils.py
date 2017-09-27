@@ -93,7 +93,7 @@ def _compute_distance_matrix(rating_set):
     for j, item_j in enumerate(item_ids):
       i_likers = likers_by_item.get(item_i, frozenset())
       j_likers = likers_by_item.get(item_j, frozenset())
-      matrix[i][j] = _cosine_similarity(i_likers, j_likers)
+      matrix[i][j] = 1 - _cosine_similarity(i_likers, j_likers)
 
   return matrix, item_ids
 

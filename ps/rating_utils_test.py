@@ -113,16 +113,18 @@ class ComputeDistanceMatrixTest(unittest.TestCase):
     rating_set = dataset_io.RatingSet(fold='u1')
     rating_set.base = pd.DataFrame.from_records(
         columns=['user_id', 'item_id', 'rating'],
-        data=[(1, 2, 5), (2, 2, 5), (2, 3, 5), (3, 3, 5)])
+        data=[(1, 2, 5), (2, 2, 5), (4, 2, 5), (2, 3, 5), (3, 3, 5), (4, 3, 5)])
     rating_set_by_fold = {'u1': rating_set}
 
     distance_by_fold = rating_utils.compute_distances_by_fold(rating_set_by_fold)
     self.assertIn('u1', distance_by_fold)
 
     distance_matrix, item_ids = distance_by_fold['u1']
-    expected_matrix = np.array([[1., .5], [.5, 1.]])
 
-    are_almost_equal = ((distance_matrix - expected_matrix) < 1e-8).all()
+    expected_matrix = np.array([[0., 1/3], [1/3, 0.]])
+    error_matrix = np.abs(distance_matrix - expected_matrix)
+    are_almost_equal = (error_matrix < 1e-8).all()
+
     self.assertTrue(are_almost_equal)
 
     self.assertSequenceEqual([2, 3], item_ids)
