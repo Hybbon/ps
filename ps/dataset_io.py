@@ -1,4 +1,5 @@
 import collections
+import logging
 import re
 import os
 
@@ -109,3 +110,22 @@ def load_ratings_for_all_folds(dir_path):
     setattr(rating_set, split, ratings)
 
   return collections.OrderedDict(sorted(rating_set_by_fold.items()))
+
+
+OutputMethod = collections.namedtuple('OutputMethod', ('extension', 'function'))
+
+
+def save_results_frame(results_frame, output_dir):
+  logging.info(results_frame)
+  logging.info('Saving the results frame to the output directory')
+
+  output_methods = [
+      OutputMethod('csv', results_frame.to_csv),
+      OutputMethod('html', results_frame.to_html),
+      OutputMethod('tex', results_frame.to_latex),
+  ]
+
+  for extension, function in output_methods:
+    output_path = os.path.join(output_dir, 'output.{}'.format(extension))
+    logging.info('Outputting to %s', output_path)
+    function(output_path)
