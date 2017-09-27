@@ -74,16 +74,6 @@ def _cosine_similarity(a, b):
   return len(a & b) / ((math.sqrt(len(a)) * math.sqrt(len(b))) or 1)
 
 
-def _compute_distances(k_items, l_items, likers_by_item):
-  distances = []
-  for k_item, l_item in zip(k_items, l_items):
-    k_likers = likers_by_item.get(k_item, frozenset())
-    l_likers = likers_by_item.get(l_item, frozenset())
-    distance = 1 - _cosine_similarity(k_likers, l_likers)
-    distances.append(distance)
-  return distances
-
-
 def _compute_distance_matrix(rating_set):
   likers_by_item = _compute_likers(rating_set)
   item_ids = sorted(likers_by_item.keys())
