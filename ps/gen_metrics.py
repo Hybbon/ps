@@ -74,23 +74,6 @@ def compute_all_metrics(ranking_set_by_id, rating_set_by_fold):
   return pd.concat(results_frames)
 
 
-OutputMethod = collections.namedtuple('OutputMethod', ('extension', 'function'))
-
-
-def _save_results_frame(results_frame, output_dir):
-  logging.info(results_frame)
-  logging.info('Saving the results frame to the output directory')
-
-  output_methods = [
-      OutputMethod('csv', results_frame.to_csv),
-      OutputMethod('html', results_frame.to_html),
-      OutputMethod('tex', results_frame.to_latex),
-  ]
-
-  for extension, function in output_methods:
-    output_path = os.path.join(output_dir, 'output.{}'.format(extension))
-    logging.info('Outputting to %s', output_path)
-    function(output_path)
 
 
 def main(dataset_dir, output_dir):
@@ -101,4 +84,4 @@ def main(dataset_dir, output_dir):
   logging_utils.log_stats_for_folds(rating_set_by_fold)
   logging.info('Done loading')
   results_frame = compute_all_metrics(ranking_set_by_id, rating_set_by_fold)
-  _save_results_frame(results_frame, output_dir)
+  dataset_io.save_results_frame(results_frame, output_dir)

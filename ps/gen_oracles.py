@@ -75,5 +75,5 @@ def main(dataset_dir, output_dir):
   created_ranking_sets_by_id = _compute_all_oracle_rankings(ranking_set_by_id, rating_set_by_fold)
   _save_ranking_sets(created_ranking_sets_by_id, output_dir)
   results_frame = gen_metrics.compute_all_metrics(created_ranking_sets_by_id, rating_set_by_fold)
-  print(results_frame)
+  dataset_io.save_results_frame(results_frame, output_dir)
 
