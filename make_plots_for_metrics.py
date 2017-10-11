@@ -7,6 +7,7 @@ import os
 
 import matplotlib as mpl
 import matplotlib.pyplot as plt
+from mpl_toolkits.mplot3d import Axes3D
 import pandas as pd
 
 from ps import logging_utils
@@ -33,8 +34,9 @@ def _compute_mean_metrics(metrics):
           'ItemKNN', 'LeastSquareSLIM', 'MostPopular', 'Poisson',
           'SoftMarginRankingMF'
       ],
-      'era_multiobj': ['ERAMultiObj'],
+      'era_multiobj': ['ERAMultiObjLinear'],
       'unsup_agg': ['BordaCount', 'MedianRankAggregation'],
+      'oracle': ['EPCOracle', 'MAPOracle', 'EILDOracle'],
   }
   source_category = {}
   for category, sources in sources_by_category.items():
@@ -55,6 +57,7 @@ def _compute_mean_metrics(metrics):
       'unsup_agg': 1,
       'sup_agg': 2,
       'era_multiobj': 3,
+      'oracle': 4,
   }
   mean_metrics['sort_weights'] = [
       sort_weights[category] for category in mean_metrics.source_category
@@ -82,9 +85,9 @@ def plot(f):
 
 def get_metric_display_name(internal_name):
   display_name_by_internal = {
-    'map': 'Precisão',
-    'eild': 'Diversidade',
-    'epc': 'Novidade'
+      'map': 'Precisão',
+      'eild': 'Diversidade',
+      'epc': 'Novidade'
   }
 
   return display_name_by_internal.get(internal_name, internal_name)
@@ -117,8 +120,8 @@ def _scatter_plot_by_source_category(mean_metrics,
     mean_y_value = mean_metrics[y].median()
     plt.axhline(y=mean_y_value, c=(0, 0, 0, 0.65))
 
-  colors = ['darkblue', 'orangered', 'green', 'darkorchid']
-  markers = ['o', 'x', 's', 'd']
+  colors = ['darkblue', 'orangered', 'green', 'darkorchid', 'darkcyan']
+  markers = ['o', 'x', 's', 'd', 'x']
   for (category, frame), color, marker in zip(
       mean_metrics.groupby('source_category'), colors, markers):
     scatter_plot = frame.plot.scatter(
@@ -128,12 +131,40 @@ def _scatter_plot_by_source_category(mean_metrics,
   ax.set_ylabel(get_metric_display_name(y))
 
 
+@plot
+def _3d_scatter_plot(mean_metrics, fig=None):
+  if fig is None:
+    fig = plt.figure()
+
+  threedee = fig.gca(projection='3d')
+  # threedee.scatter(mean_metrics.map, mean_metrics.epc, mean_metrics.eild)
+
+  colors = ['darkblue', 'orangered', 'green', 'darkorchid', 'darkcyan']
+  markers = ['o', 'x', 's', 'd', 'x']
+  for (category, frame), color, marker in zip(
+      mean_metrics.groupby('source_category'), colors, markers):
+    threedee.scatter(
+        frame.map,
+        frame.epc,
+        frame.eild,
+        s=45.,
+        c=color,
+        marker=marker,
+        label=category)
+  # scatter_plot = frame.plot.scatter(
+  #     x, y, s=45., c=color, marker=marker, label=category, ax=ax)
+
+  threedee.set_xlabel('map')
+  threedee.set_ylabel('nov')
+  threedee.set_zlabel('div')
+
+
 ScatterPlotSettings = collections.namedtuple('ScatterPlotSettings', (
     'x_metric', 'y_metric', 'plot_median_x', 'plot_median_y'))
 
 
-def _make_plots(mean_metrics, output_dir):
-  bar_plot_path = os.path.join(output_dir, 'mean_metrics_bar_plot.pdf')
+def _make_plots(mean_metrics, output_dir, extension='png'):
+  bar_plot_path = os.path.join(output_dir, f'mean_metrics_bar_plot.{extension}')
   logging.info('Plotting mean metrics into a bar plot at %s', bar_plot_path)
   _bar_plot_for_mean_metrics(bar_plot_path, mean_metrics)
 
@@ -147,13 +178,16 @@ def _make_plots(mean_metrics, output_dir):
   ]
 
   for x_metric, y_metric, plot_median_x, plot_median_y in scatter_plots:
-    scatter_plot_path = os.path.join(output_dir,
-                                     '{}_by_{}_scatter_plot.pdf'.format(
-                                         y_metric, x_metric))
+    scatter_plot_path = os.path.join(
+        output_dir, f'{y_metric}_by_{x_metric}_scatter_plot.{extension}')
     logging.info('Plotting %s by %s into a scatter plot to %s', y_metric,
                  x_metric, scatter_plot_path)
     _scatter_plot_by_source_category(scatter_plot_path, mean_metrics, x_metric,
                                      y_metric, plot_median_x, plot_median_y)
+
+  threedee_scatter_path = os.path.join(output_dir, f'3d_scatter.{extension}')
+  logging.info('Plotting 3d scatter plot to %s', threedee_scatter_path)
+  _3d_scatter_plot(threedee_scatter_path, mean_metrics)
 
 
 def parse_args():
