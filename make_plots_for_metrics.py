@@ -105,6 +105,7 @@ def _bar_plot_for_mean_metrics(mean_metrics):
 def _scatter_plot_by_source_category(mean_metrics,
                                      x,
                                      y,
+                                     front_metrics=None,
                                      plot_median_x=False,
                                      plot_median_y=False,
                                      fig=None):
@@ -124,15 +125,19 @@ def _scatter_plot_by_source_category(mean_metrics,
   markers = ['o', 'x', 's', 'd', 'x']
   for (category, frame), color, marker in zip(
       mean_metrics.groupby('source_category'), colors, markers):
-    scatter_plot = frame.plot.scatter(
+    frame.plot.scatter(
         x, y, s=45., c=color, marker=marker, label=category, ax=ax)
+
+  if front_metrics is not None:
+    front_metrics.plot.scatter(
+        x, y, s=45., c='red', marker='o', label='Front', ax=ax)
 
   ax.set_xlabel(get_metric_display_name(x))
   ax.set_ylabel(get_metric_display_name(y))
 
 
 @plot
-def _3d_scatter_plot(mean_metrics, fig=None):
+def _3d_scatter_plot(mean_metrics, front_metrics=None, fig=None):
   if fig is None:
     fig = plt.figure()
 
@@ -143,6 +148,8 @@ def _3d_scatter_plot(mean_metrics, fig=None):
   markers = ['o', 'x', 's', 'd', 'x']
   for (category, frame), color, marker in zip(
       mean_metrics.groupby('source_category'), colors, markers):
+    if category == 'oracle':
+      continue
     threedee.scatter(
         frame.map,
         frame.epc,
@@ -154,6 +161,16 @@ def _3d_scatter_plot(mean_metrics, fig=None):
   # scatter_plot = frame.plot.scatter(
   #     x, y, s=45., c=color, marker=marker, label=category, ax=ax)
 
+  if front_metrics is not None:
+    threedee.scatter(
+        front_metrics.map,
+        front_metrics.epc,
+        front_metrics.eild,
+        s=45.,
+        c='red',
+        marker='o',
+        label='Front')
+
   threedee.set_xlabel('map')
   threedee.set_ylabel('nov')
   threedee.set_zlabel('div')
@@ -163,7 +180,7 @@ ScatterPlotSettings = collections.namedtuple('ScatterPlotSettings', (
     'x_metric', 'y_metric', 'plot_median_x', 'plot_median_y'))
 
 
-def _make_plots(mean_metrics, output_dir, extension='png'):
+def _make_plots(mean_metrics, output_dir, front_metrics=None, extension='png'):
   bar_plot_path = os.path.join(output_dir, f'mean_metrics_bar_plot.{extension}')
   logging.info('Plotting mean metrics into a bar plot at %s', bar_plot_path)
   _bar_plot_for_mean_metrics(bar_plot_path, mean_metrics)
@@ -182,17 +199,25 @@ def _make_plots(mean_metrics, output_dir, extension='png'):
         output_dir, f'{y_metric}_by_{x_metric}_scatter_plot.{extension}')
     logging.info('Plotting %s by %s into a scatter plot to %s', y_metric,
                  x_metric, scatter_plot_path)
-    _scatter_plot_by_source_category(scatter_plot_path, mean_metrics, x_metric,
-                                     y_metric, plot_median_x, plot_median_y)
+    _scatter_plot_by_source_category(
+        scatter_plot_path,
+        mean_metrics,
+        x_metric,
+        y_metric,
+        front_metrics,
+        plot_median_x,
+        plot_median_y)
 
   threedee_scatter_path = os.path.join(output_dir, f'3d_scatter.{extension}')
   logging.info('Plotting 3d scatter plot to %s', threedee_scatter_path)
-  _3d_scatter_plot(threedee_scatter_path, mean_metrics)
+  _3d_scatter_plot(
+      threedee_scatter_path, mean_metrics, front_metrics)
 
 
 def parse_args():
   p = argparse.ArgumentParser()
   p.add_argument('metrics_csv_path')
+  p.add_argument('--front_csv_path')
   return p.parse_args()
 
 
@@ -214,12 +239,19 @@ def main():
   _setup_loggers()
   args = parse_args()
 
-  logging.info('Using metrics at %s', args.metrics_csv_path)
-
   output_dir = os.path.dirname(args.metrics_csv_path)
 
   metrics = _read_metrics_from_file(args.metrics_csv_path)
   logging.info('Done reading metrics from CSV: %s', metrics)
+
+  if args.front_csv_path is None:
+    logging.info('No front metrics path provided')
+    front_metrics = None
+  else:
+    logging.info('Reading front metrics from %s', args.front_csv_path)
+    front_metrics = _read_metrics_from_file(args.front_csv_path)
+
+  logging.info('Using metrics at %s', args.metrics_csv_path)
 
   logging.info('Computing mean metrics')
   mean_metrics = _compute_mean_metrics(metrics)
@@ -230,7 +262,7 @@ def main():
   mean_metrics.to_csv(mean_metrics_path)
 
   logging.info('Plotting stuff')
-  _make_plots(mean_metrics, output_dir)
+  _make_plots(mean_metrics, output_dir, front_metrics)
 
 
 if __name__ == '__main__':
