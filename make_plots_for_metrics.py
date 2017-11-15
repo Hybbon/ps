@@ -4,6 +4,7 @@ import datetime
 import functools
 import logging
 import os
+import re
 
 import matplotlib as mpl
 import matplotlib.pyplot as plt
@@ -34,9 +35,10 @@ def _compute_mean_metrics(metrics):
           'ItemKNN', 'LeastSquareSLIM', 'MostPopular', 'Poisson',
           'SoftMarginRankingMF'
       ],
-      'era_multiobj': ['ERAMultiObjLinear'],
+      'era_multiobj': ['ERALinear30', 'ERALinear40', 'ERALinear50'],
       'unsup_agg': ['BordaCount', 'MedianRankAggregation'],
       'oracle': ['EPCOracle', 'MAPOracle', 'EILDOracle'],
+      'era_singleobj': ['GPRA_best'],
   }
   source_category = {}
   for category, sources in sources_by_category.items():
@@ -56,6 +58,7 @@ def _compute_mean_metrics(metrics):
       'recommender': 0,
       'unsup_agg': 1,
       'sup_agg': 2,
+      'era_singleobj': 2,
       'era_multiobj': 3,
       'oracle': 4,
   }
@@ -101,6 +104,25 @@ def _bar_plot_for_mean_metrics(mean_metrics):
   ax.legend(handles, display_labels)
 
 
+CategorySettings = collections.namedtuple('CategorySettings',
+                                          ['color', 'marker', 'label'])
+
+_CATEGORY_SETTINGS = {
+    'recommender':
+    CategorySettings(color='green', marker='s', label='Recommender'),
+    'sup_agg':
+    CategorySettings(color='darkorchid', marker='d', label='Supervised Agg.'),
+    'unsup_agg':
+    CategorySettings(color='darkcyan', marker='v', label='Unsup. Agg.'),
+    'era_multiobj':
+    CategorySettings(color='darkblue', marker='P', label='Linear ERA'),
+    'era_singleobj':
+    CategorySettings(color='black', marker='o', label='Precision ERA'),
+    'oracle':
+    CategorySettings(color='orangered', marker='x', label='Oracle'),
+}
+
+
 @plot
 def _scatter_plot_by_source_category(mean_metrics,
                                      x,
@@ -113,6 +135,10 @@ def _scatter_plot_by_source_category(mean_metrics,
     fig = plt.figure()
   ax = fig.add_subplot(111)
 
+  if front_metrics is not None:
+    front_metrics.plot.scatter(
+        x, y, s=45., c='red', marker='*', label='SPEA Front', ax=ax)
+
   if plot_median_x:
     mean_x_value = mean_metrics[x].median()
     plt.axvline(x=mean_x_value, c=(0, 0, 0, 0.65))
@@ -121,16 +147,16 @@ def _scatter_plot_by_source_category(mean_metrics,
     mean_y_value = mean_metrics[y].median()
     plt.axhline(y=mean_y_value, c=(0, 0, 0, 0.65))
 
-  colors = ['darkblue', 'orangered', 'green', 'darkorchid', 'darkcyan']
-  markers = ['o', 'x', 's', 'd', 'x']
-  for (category, frame), color, marker in zip(
-      mean_metrics.groupby('source_category'), colors, markers):
+  for category, frame in mean_metrics.groupby('source_category'):
+    settings = _CATEGORY_SETTINGS[category]
     frame.plot.scatter(
-        x, y, s=45., c=color, marker=marker, label=category, ax=ax)
-
-  if front_metrics is not None:
-    front_metrics.plot.scatter(
-        x, y, s=45., c='red', marker='o', label='Front', ax=ax)
+        x,
+        y,
+        s=45.,
+        c=settings.color,
+        marker=settings.marker,
+        label=settings.label,
+        ax=ax)
 
   ax.set_xlabel(get_metric_display_name(x))
   ax.set_ylabel(get_metric_display_name(y))
@@ -180,7 +206,7 @@ ScatterPlotSettings = collections.namedtuple('ScatterPlotSettings', (
     'x_metric', 'y_metric', 'plot_median_x', 'plot_median_y'))
 
 
-def _make_plots(mean_metrics, output_dir, front_metrics=None, extension='png'):
+def _make_plots(mean_metrics, output_dir, front_metrics=None, extension='pdf'):
   bar_plot_path = os.path.join(output_dir, f'mean_metrics_bar_plot.{extension}')
   logging.info('Plotting mean metrics into a bar plot at %s', bar_plot_path)
   _bar_plot_for_mean_metrics(bar_plot_path, mean_metrics)
@@ -199,25 +225,23 @@ def _make_plots(mean_metrics, output_dir, front_metrics=None, extension='png'):
         output_dir, f'{y_metric}_by_{x_metric}_scatter_plot.{extension}')
     logging.info('Plotting %s by %s into a scatter plot to %s', y_metric,
                  x_metric, scatter_plot_path)
-    _scatter_plot_by_source_category(
-        scatter_plot_path,
-        mean_metrics,
-        x_metric,
-        y_metric,
-        front_metrics,
-        plot_median_x,
-        plot_median_y)
+    _scatter_plot_by_source_category(scatter_plot_path, mean_metrics, x_metric,
+                                     y_metric, front_metrics, plot_median_x,
+                                     plot_median_y)
 
   threedee_scatter_path = os.path.join(output_dir, f'3d_scatter.{extension}')
   logging.info('Plotting 3d scatter plot to %s', threedee_scatter_path)
-  _3d_scatter_plot(
-      threedee_scatter_path, mean_metrics, front_metrics)
+  _3d_scatter_plot(threedee_scatter_path, mean_metrics, front_metrics)
 
 
 def parse_args():
   p = argparse.ArgumentParser()
   p.add_argument('metrics_csv_path')
   p.add_argument('--front_csv_path')
+  p.add_argument('--fold', type=int)
+  p.add_argument('--no_oracles', action='store_true')
+  p.add_argument('--min_precision', type=float)
+  p.add_argument('--keep_within_x_stds', type=float)
   return p.parse_args()
 
 
@@ -242,7 +266,7 @@ def main():
   output_dir = os.path.dirname(args.metrics_csv_path)
 
   metrics = _read_metrics_from_file(args.metrics_csv_path)
-  logging.info('Done reading metrics from CSV: %s', metrics)
+  logging.info('Done reading metrics from CSV')
 
   if args.front_csv_path is None:
     logging.info('No front metrics path provided')
@@ -251,15 +275,38 @@ def main():
     logging.info('Reading front metrics from %s', args.front_csv_path)
     front_metrics = _read_metrics_from_file(args.front_csv_path)
 
+  if args.fold is not None:
+    logging.info('Filtering metrics to fold %d', args.fold)
+    metrics = metrics[metrics.fold == args.fold]
+
   logging.info('Using metrics at %s', args.metrics_csv_path)
 
   logging.info('Computing mean metrics')
   mean_metrics = _compute_mean_metrics(metrics)
-  logging.info('Done computing mean metrics: %s', mean_metrics)
+  logging.info('Done computing mean metrics')
 
   mean_metrics_path = os.path.join(output_dir, 'mean_metrics.csv')
   logging.info('Saving mean metrics to %s', mean_metrics_path)
   mean_metrics.to_csv(mean_metrics_path)
+
+  if args.no_oracles:
+    logging.info('Removing oracles before plotting')
+    mean_metrics = mean_metrics[mean_metrics.source_category != 'oracle']
+
+  if args.keep_within_x_stds is not None:
+    max_precision = mean_metrics.map.max()
+    std = mean_metrics.map.std()
+    min_precision = max_precision - args.keep_within_x_stds * std
+  elif args.min_precision is not None:
+    min_precision = args.min_precision
+  else:
+    min_precision = None
+
+  if min_precision is not None:
+    logging.info('Filtering points with MAP under %f', min_precision)
+    mean_metrics = mean_metrics[mean_metrics.map >= min_precision]
+    if front_metrics is not None:
+      front_metrics = front_metrics[front_metrics.map >= min_precision]
 
   logging.info('Plotting stuff')
   _make_plots(mean_metrics, output_dir, front_metrics)
