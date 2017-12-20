@@ -48,6 +48,12 @@ def compute_n_equally_spaced_subsets(sources, distances_frame, size, n):
     percentile = i / (n - 1) * 100
     percentile_value = i * step
     percentile_index = bisect.bisect_left(distances, percentile_value)
+
+    # bisect_left may return len(distances), if we're unlucky with floating
+    # point numbers. In that case, we're on percentile 100% anyway.
+    if percentile_index >= len(distances):
+      percentile_index = len(distances) - 1
+
     subset = subsets[percentile_index]
     distance = distances[percentile_index]
     logging.info('Percentile %.2f -- distance = %.6f: %s', percentile, distance,
