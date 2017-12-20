@@ -1,3 +1,5 @@
+import bisect
+import collections
 import itertools
 import logging
 import os
@@ -26,6 +28,35 @@ def compute_distance_optimal_subset(sources, distances_frame, size):
       key=lambda subset: sum_all_pairwise_distances(distances_frame, subset))
 
 
+PercentileSubset = collections.namedtuple('PercentileSubset',
+                                          ('subset', 'percentile', 'distance'))
+
+
+def compute_n_equally_spaced_subsets(sources, distances_frame, size, n):
+  logging.info('Computing %d equally-spaced subsets of size %d', n, size)
+
+  distances_and_subsets = []
+  for subset in itertools.combinations(sources, size):
+    distance_sum = sum_all_pairwise_distances(distances_frame, subset)
+    distances_and_subsets.append((distance_sum, subset))
+
+  distances, subsets = zip(*sorted(distances_and_subsets))
+
+  step = max(distances) / (n - 1)
+  chosen_subsets = []
+  for i in range(n):
+    percentile = i / (n - 1) * 100
+    percentile_value = i * step
+    percentile_index = bisect.bisect_left(distances, percentile_value)
+    subset = subsets[percentile_index]
+    distance = distances[percentile_index]
+    logging.info('Percentile %.2f -- distance = %.6f: %s', percentile, distance,
+                 subset)
+    chosen_subsets.append(PercentileSubset(list(subset), percentile, distance))
+
+  return chosen_subsets
+
+
 def sum_all_pairwise_distances(distances_frame, subset):
   subset = list(subset)
   return distances_frame[subset].loc[subset].values.sum()
@@ -39,8 +70,7 @@ def create_symlinks_for_dataset(output_dir, dataset_dir, fold,
   # We build the list of files to link from the reeval/test dataset because it
   # contains one less file (validation).
   reeval_files_to_link = source_filenames + [
-      f'{fold}.{suffix}'
-      for suffix in ['base', 'base.usermap', 'test']
+      f'{fold}.{suffix}' for suffix in ['base', 'base.usermap', 'test']
   ]
 
   # The training dataset has the additional validation split
@@ -66,24 +96,46 @@ def make_split_symlinks(output_dir, dataset_dir, files_to_link):
     os.symlink(source_path, destination_path)
 
 
+class SubsetSymlinker(object):
+
+  def __init__(self, dataset_dir, fold, distances_path):
+    self.dataset_dir = dataset_dir
+    self.fold = fold
+
+    self.sources = get_source_filenames(dataset_dir, fold)
+    logging.info('Sources: %s', self.sources)
+
+    self.distances_frame = load_distances(distances_path)
+    logging.info('Distances read successfully from %s', distances_path)
+
+    ensure_no_missing_distances(self.sources, self.distances_frame)
+
+  def compute_subsets_and_make_symlinks(self, output_dir):
+    for n in range(2, len(self.sources)):
+      size_output_dir = os.path.join(output_dir, f'best-{n}')
+      self._compute_subsets_and_make_symlinks_for_size(n, size_output_dir)
+
+  def _compute_subsets_and_make_symlinks_for_size(self, size, output_dir):
+    subsets = compute_n_equally_spaced_subsets(self.sources,
+                                               self.distances_frame, size, n=7)
+    subsets = subsets[1:-1]  # Discard percentiles 0 and 100
+
+    for subset, percentile, distance in subsets:
+      logging.info('Got subset at percentile %.2f', percentile)
+      percentile_string = f'percentile-{percentile:.2f}'
+      percentile_output_dir = os.path.join(output_dir, percentile_string)
+      logging.info('Creating symlinks at %s', percentile_output_dir)
+      create_symlinks_for_dataset(
+          percentile_output_dir,
+          self.dataset_dir,
+          self.fold,
+          source_filenames=subset)
+      logging.info('Done creating symlinks.')
+
+
 def main(dataset_dir, fold, output_dir, distances_path):
-  distances_frame = load_distances(distances_path)
-
-  sources = get_source_filenames(dataset_dir, fold)
-  logging.info('Sources: %s', sources)
-
-  ensure_no_missing_distances(sources, distances_frame)
-
-  for n in range(2, len(sources)):
-    optimal_subset = list(
-        compute_distance_optimal_subset(sources, distances_frame, size=n))
-    logging.info('Optimal subset for n = %d: %s', n, optimal_subset)
-
-    symlinks_dir = os.path.join(output_dir, f'best-{n}')
-    logging.info('Creating symlinks at %s', symlinks_dir)
-    create_symlinks_for_dataset(
-        symlinks_dir, dataset_dir, fold, source_filenames=optimal_subset)
-    logging.info('Done creating symlinks.')
+  symlinker = SubsetSymlinker(dataset_dir, fold, distances_path)
+  symlinker.compute_subsets_and_make_symlinks(output_dir)
 
 
 def ensure_no_missing_distances(sources, distances_frame):
